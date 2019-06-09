@@ -3,9 +3,9 @@ spring:
     mongodb:
       port: 27017
       database: proddb
-#  shell:
-#    interactive:
-#      enabled: false
+  shell:
+    interactive:
+      enabled: true
 
 
   datasource:
