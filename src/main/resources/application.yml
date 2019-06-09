@@ -9,17 +9,10 @@ spring:
 
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/denisdb
+    url: jdbc:postgresql://localhost:5432/destdb
     username: postgres
     password: postgres
-
-    #initialization-mode: never # put 'always' for creating tables at initial state
-
-  batch:
-    initialize-schema: always
-    job:
-      enabled: false
-
+    initialization-mode: always
   jpa:
     properties:
       hibernate:
@@ -27,3 +20,9 @@ spring:
           lob:
             non_contextual_creation: true
     database-platform: org.hibernate.dialect.PostgreSQL9Dialect
+
+
+  batch:
+    initialize-schema: always
+    job:
+      enabled: false

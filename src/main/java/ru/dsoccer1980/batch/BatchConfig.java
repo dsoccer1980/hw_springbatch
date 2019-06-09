@@ -2,13 +2,15 @@ package ru.dsoccer1980.batch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.core.*;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.JobExecutionListener;
+import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.job.flow.FlowJob;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
-import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
@@ -19,14 +21,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import ru.dsoccer1980.domain.Author;
+import ru.dsoccer1980.domain.Book;
 import ru.dsoccer1980.domain.Genre;
 import ru.dsoccer1980.domain.jpa.JpaAuthor;
+import ru.dsoccer1980.domain.jpa.JpaBook;
 import ru.dsoccer1980.domain.jpa.JpaGenre;
 import ru.dsoccer1980.repository.JpaAuthorRepository;
+import ru.dsoccer1980.repository.JpaBookRepository;
 import ru.dsoccer1980.repository.JpaGenreRepository;
 
 import java.util.HashMap;
-import java.util.List;
 
 @EnableBatchProcessing
 @Configuration
@@ -45,6 +49,9 @@ public class BatchConfig {
     @Autowired
     JpaGenreRepository jpaGenreRepository;
 
+    @Autowired
+    JpaBookRepository jpaBookRepository;
+
     @Bean
     public ItemReader<Author> readerAuthor(MongoTemplate mongoTemplate) {
         return new MongoItemReaderBuilder<Author>()
@@ -53,7 +60,6 @@ public class BatchConfig {
                 .jsonQuery("{}")
                 .sorts(new HashMap<>())
                 .targetType(Author.class)
-                .name("mongo")
                 .build();
     }
 
@@ -69,6 +75,17 @@ public class BatchConfig {
     }
 
     @Bean
+    public ItemReader<Book> readerBook(MongoTemplate mongoTemplate) {
+        return new MongoItemReaderBuilder<Book>()
+                .name("ItemReaderBook")
+                .template(mongoTemplate)
+                .jsonQuery("{}")
+                .sorts(new HashMap<>())
+                .targetType(Book.class)
+                .build();
+    }
+
+    @Bean
     public ItemProcessor processorAuthor() {
         return (ItemProcessor<Author, JpaAuthor>) author -> new JpaAuthor(Long.parseLong(author.getId()), author.getName());
     }
@@ -76,6 +93,14 @@ public class BatchConfig {
     @Bean
     public ItemProcessor processorGenre() {
         return (ItemProcessor<Genre, JpaGenre>) genre -> new JpaGenre(Long.parseLong(genre.getId()), genre.getName());
+    }
+
+    @Bean
+    public ItemProcessor processorBook() {
+        return (ItemProcessor<Book, JpaBook>) book ->
+                new JpaBook(Long.parseLong(book.getId()), book.getName(),
+                        new JpaAuthor(Long.parseLong(book.getAuthor().getId()), book.getAuthor().getName()),
+                        new JpaGenre(Long.parseLong(book.getGenre().getId()), book.getGenre().getName()));
     }
 
     @Bean
@@ -95,11 +120,21 @@ public class BatchConfig {
     }
 
     @Bean
-    public Job importUserJob(Step step1, Step step2) {
+    public ItemWriter writerBook() {
+        return new RepositoryItemWriterBuilder<JpaBook>()
+                .repository(jpaBookRepository)
+                .methodName("save")
+                .build();
+    }
+
+
+    @Bean
+    public Job importUserJob(Step step1, Step step2, Step step3) {
         FlowJob job = (FlowJob) jobBuilderFactory.get("importUserJob")
                 .incrementer(new RunIdIncrementer())
                 .flow(step1)
                 .next(step2)
+                .next(step3)
                 .end()
                 .listener(new JobExecutionListener() {
                     @Override
@@ -134,6 +169,16 @@ public class BatchConfig {
                 .reader(readerGenre)
                 .processor(processorGenre)
                 .writer(writerGenre)
+                .build();
+    }
+
+    @Bean
+    public Step step3(ItemWriter writerBook, ItemReader readerBook, ItemProcessor processorBook) {
+        return stepBuilderFactory.get("step3")
+                .chunk(5)
+                .reader(readerBook)
+                .processor(processorBook)
+                .writer(writerBook)
                 .build();
     }
 }

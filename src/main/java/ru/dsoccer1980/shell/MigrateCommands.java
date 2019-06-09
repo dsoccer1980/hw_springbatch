@@ -1,5 +1,6 @@
 package ru.dsoccer1980.shell;
 
+import lombok.SneakyThrows;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
@@ -10,30 +11,29 @@ import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteExcep
 import org.springframework.batch.core.repository.JobRestartException;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
-import ru.dsoccer1980.service.MyService;
+import ru.dsoccer1980.service.MigrationService;
 
 @ShellComponent
-public class AuthorCommands {
+public class MigrateCommands {
 
-    private final MyService myService;
+    private final MigrationService migrationService;
     private final JobLauncher jobLauncher;
     private final Job job;
 
-    public AuthorCommands(MyService myService, JobLauncher jobLauncher, Job job) {
-        this.myService = myService;
+    public MigrateCommands(MigrationService migrationService, JobLauncher jobLauncher, Job job) {
+        this.migrationService = migrationService;
         this.jobLauncher = jobLauncher;
         this.job = job;
     }
 
     @ShellMethod("migrate")
-    public void migrate() throws JobParametersInvalidException, JobExecutionAlreadyRunningException, JobRestartException, JobInstanceAlreadyCompleteException {
+    @SneakyThrows
+    public void migrate() {
         JobParameters jobParameters =
                 new JobParametersBuilder()
                         .addLong("time", System.currentTimeMillis()).toJobParameters();
 
-
         jobLauncher.run(job, jobParameters);
-
     }
 
 }
