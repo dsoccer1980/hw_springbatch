@@ -19,8 +19,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import ru.dsoccer1980.domain.Author;
+import ru.dsoccer1980.domain.Genre;
 import ru.dsoccer1980.domain.jpa.JpaAuthor;
+import ru.dsoccer1980.domain.jpa.JpaGenre;
 import ru.dsoccer1980.repository.JpaAuthorRepository;
+import ru.dsoccer1980.repository.JpaGenreRepository;
 
 import java.util.HashMap;
 import java.util.List;
@@ -39,10 +42,13 @@ public class BatchConfig {
     @Autowired
     JpaAuthorRepository jpaAuthorRepository;
 
+    @Autowired
+    JpaGenreRepository jpaGenreRepository;
+
     @Bean
-    public ItemReader<Author> reader(MongoTemplate mongoTemplate) {
+    public ItemReader<Author> readerAuthor(MongoTemplate mongoTemplate) {
         return new MongoItemReaderBuilder<Author>()
-                .name("ItemReader")
+                .name("ItemReaderAuthor")
                 .template(mongoTemplate)
                 .jsonQuery("{}")
                 .sorts(new HashMap<>())
@@ -52,12 +58,28 @@ public class BatchConfig {
     }
 
     @Bean
-    public ItemProcessor processor() {
+    public ItemReader<Genre> readerGenre(MongoTemplate mongoTemplate) {
+        return new MongoItemReaderBuilder<Genre>()
+                .name("ItemReaderGenre")
+                .template(mongoTemplate)
+                .jsonQuery("{}")
+                .sorts(new HashMap<>())
+                .targetType(Genre.class)
+                .build();
+    }
+
+    @Bean
+    public ItemProcessor processorAuthor() {
         return (ItemProcessor<Author, JpaAuthor>) author -> new JpaAuthor(Long.parseLong(author.getId()), author.getName());
     }
 
     @Bean
-    public ItemWriter writer() {
+    public ItemProcessor processorGenre() {
+        return (ItemProcessor<Genre, JpaGenre>) genre -> new JpaGenre(Long.parseLong(genre.getId()), genre.getName());
+    }
+
+    @Bean
+    public ItemWriter writerAuthor() {
         return new RepositoryItemWriterBuilder<JpaAuthor>()
                 .repository(jpaAuthorRepository)
                 .methodName("save")
@@ -65,10 +87,19 @@ public class BatchConfig {
     }
 
     @Bean
-    public Job importUserJob(Step step1) {
+    public ItemWriter writerGenre() {
+        return new RepositoryItemWriterBuilder<JpaGenre>()
+                .repository(jpaGenreRepository)
+                .methodName("save")
+                .build();
+    }
+
+    @Bean
+    public Job importUserJob(Step step1, Step step2) {
         FlowJob job = (FlowJob) jobBuilderFactory.get("importUserJob")
                 .incrementer(new RunIdIncrementer())
                 .flow(step1)
+                .next(step2)
                 .end()
                 .listener(new JobExecutionListener() {
                     @Override
@@ -87,64 +118,22 @@ public class BatchConfig {
     }
 
     @Bean
-    public Step step1(ItemWriter writer, ItemReader reader, ItemProcessor itemProcessor) {
+    public Step step1(ItemWriter writerAuthor, ItemReader readerAuthor, ItemProcessor processorAuthor) {
         return stepBuilderFactory.get("step1")
                 .chunk(5)
-                .reader(reader)
-                .processor(itemProcessor)
-                .writer(writer)
-                .listener(new ItemReadListener() {
-                    public void beforeRead() {
-                        logger.info("Начало чтения");
-                    }
+                .reader(readerAuthor)
+                .processor(processorAuthor)
+                .writer(writerAuthor)
+                .build();
+    }
 
-                    public void afterRead(Object o) {
-                        logger.info("Конец чтения");
-                    }
-
-                    public void onReadError(Exception e) {
-                        logger.info("Ошибка чтения");
-                    }
-                })
-                .listener(new ItemWriteListener() {
-                    public void beforeWrite(List list) {
-                        logger.info("Начало записи");
-                    }
-
-                    public void afterWrite(List list) {
-                        logger.info("Конец записи");
-                    }
-
-                    public void onWriteError(Exception e, List list) {
-                        logger.info("Ошибка записи");
-                    }
-                })
-                .listener(new ItemProcessListener() {
-                    public void beforeProcess(Object o) {
-                        logger.info("Начало обработки");
-                    }
-
-                    public void afterProcess(Object o, Object o2) {
-                        logger.info("Конец обработки");
-                    }
-
-                    public void onProcessError(Object o, Exception e) {
-                        logger.info("Ошбка обработки");
-                    }
-                })
-                .listener(new ChunkListener() {
-                    public void beforeChunk(ChunkContext chunkContext) {
-                        logger.info("Начало пачки");
-                    }
-
-                    public void afterChunk(ChunkContext chunkContext) {
-                        logger.info("Конец пачки");
-                    }
-
-                    public void afterChunkError(ChunkContext chunkContext) {
-                        logger.info("Ошибка пачки");
-                    }
-                })
+    @Bean
+    public Step step2(ItemWriter writerGenre, ItemReader readerGenre, ItemProcessor processorGenre) {
+        return stepBuilderFactory.get("step2")
+                .chunk(5)
+                .reader(readerGenre)
+                .processor(processorGenre)
+                .writer(writerGenre)
                 .build();
     }
 }
