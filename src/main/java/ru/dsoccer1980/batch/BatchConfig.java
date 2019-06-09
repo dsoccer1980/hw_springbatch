@@ -14,6 +14,7 @@ import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.data.MongoItemReader;
 import org.springframework.batch.item.data.builder.MongoItemReaderBuilder;
 import org.springframework.batch.item.data.builder.RepositoryItemWriterBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,35 +55,17 @@ public class BatchConfig {
 
     @Bean
     public ItemReader<Author> readerAuthor(MongoTemplate mongoTemplate) {
-        return new MongoItemReaderBuilder<Author>()
-                .name("ItemReaderAuthor")
-                .template(mongoTemplate)
-                .jsonQuery("{}")
-                .sorts(new HashMap<>())
-                .targetType(Author.class)
-                .build();
+        return getBuild(mongoTemplate, Author.class, "ItemReaderAuthor");
     }
 
     @Bean
     public ItemReader<Genre> readerGenre(MongoTemplate mongoTemplate) {
-        return new MongoItemReaderBuilder<Genre>()
-                .name("ItemReaderGenre")
-                .template(mongoTemplate)
-                .jsonQuery("{}")
-                .sorts(new HashMap<>())
-                .targetType(Genre.class)
-                .build();
+        return getBuild(mongoTemplate, Genre.class, "ItemReaderGenre");
     }
 
     @Bean
     public ItemReader<Book> readerBook(MongoTemplate mongoTemplate) {
-        return new MongoItemReaderBuilder<Book>()
-                .name("ItemReaderBook")
-                .template(mongoTemplate)
-                .jsonQuery("{}")
-                .sorts(new HashMap<>())
-                .targetType(Book.class)
-                .build();
+        return getBuild(mongoTemplate, Book.class, "ItemReaderBook");
     }
 
     @Bean
@@ -154,31 +137,35 @@ public class BatchConfig {
 
     @Bean
     public Step step1(ItemWriter writerAuthor, ItemReader readerAuthor, ItemProcessor processorAuthor) {
-        return stepBuilderFactory.get("step1")
-                .chunk(5)
-                .reader(readerAuthor)
-                .processor(processorAuthor)
-                .writer(writerAuthor)
-                .build();
+        return getStep(writerAuthor, readerAuthor, processorAuthor, "step1");
     }
 
     @Bean
     public Step step2(ItemWriter writerGenre, ItemReader readerGenre, ItemProcessor processorGenre) {
-        return stepBuilderFactory.get("step2")
-                .chunk(5)
-                .reader(readerGenre)
-                .processor(processorGenre)
-                .writer(writerGenre)
-                .build();
+        return getStep(writerGenre, readerGenre, processorGenre, "step2");
     }
 
     @Bean
     public Step step3(ItemWriter writerBook, ItemReader readerBook, ItemProcessor processorBook) {
-        return stepBuilderFactory.get("step3")
+        return getStep(writerBook, readerBook, processorBook, "step3");
+    }
+
+    private <T> MongoItemReader<T> getBuild(MongoTemplate mongoTemplate, Class<T> clazz, String name) {
+        return new MongoItemReaderBuilder<T>()
+                .name(name)
+                .template(mongoTemplate)
+                .jsonQuery("{}")
+                .sorts(new HashMap<>())
+                .targetType(clazz)
+                .build();
+    }
+
+    private Step getStep(ItemWriter writer, ItemReader reader, ItemProcessor processor, String name) {
+        return stepBuilderFactory.get(name)
                 .chunk(5)
-                .reader(readerBook)
-                .processor(processorBook)
-                .writer(writerBook)
+                .reader(reader)
+                .processor(processor)
+                .writer(writer)
                 .build();
     }
 }

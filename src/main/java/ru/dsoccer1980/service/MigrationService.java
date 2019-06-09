@@ -7,7 +7,6 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.stereotype.Service;
 
 @Service
-
 public class MigrationService {
 
     private final JobLauncher jobLauncher;
