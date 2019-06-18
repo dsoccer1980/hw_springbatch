@@ -12,7 +12,7 @@ spring:
     url: jdbc:postgresql://localhost:5432/destdb
     username: postgres
     password: postgres
-    initialization-mode: never
+    initialization-mode: always  #put never if db already exists
   jpa:
     properties:
       hibernate:
