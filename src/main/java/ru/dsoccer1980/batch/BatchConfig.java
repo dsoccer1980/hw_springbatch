@@ -113,7 +113,6 @@ public class BatchConfig {
                 .build();
     }
 
-
     @Bean
     public Job importUserJob(Step stepMigrateAuthors, Step stepMigrateGenres, Step stepMigrateBooks) {
         FlowJob job = (FlowJob) jobBuilderFactory.get("importUserJob")
@@ -163,9 +162,9 @@ public class BatchConfig {
                 .build();
     }
 
-    private Step getStep(ItemWriter writer, ItemReader reader, ItemProcessor processor, String name) {
+    private <S, D> Step getStep(ItemWriter<D> writer, ItemReader<S> reader, ItemProcessor<S, D> processor, String name) {
         return stepBuilderFactory.get(name)
-                .chunk(5)
+                .<S, D>chunk(5)
                 .reader(reader)
                 .processor(processor)
                 .writer(writer)
