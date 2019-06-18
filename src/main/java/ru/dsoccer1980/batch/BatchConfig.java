@@ -17,7 +17,6 @@ import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.data.MongoItemReader;
 import org.springframework.batch.item.data.builder.MongoItemReaderBuilder;
 import org.springframework.batch.item.data.builder.RepositoryItemWriterBuilder;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -38,20 +37,24 @@ import java.util.HashMap;
 public class BatchConfig {
     private final Logger logger = LoggerFactory.getLogger("Batch");
 
-    @Autowired
-    public JobBuilderFactory jobBuilderFactory;
+    private final JobBuilderFactory jobBuilderFactory;
+    private final StepBuilderFactory stepBuilderFactory;
+    private final JpaAuthorRepository jpaAuthorRepository;
+    private final JpaGenreRepository jpaGenreRepository;
+    private final JpaBookRepository jpaBookRepository;
 
-    @Autowired
-    public StepBuilderFactory stepBuilderFactory;
+    public BatchConfig(JobBuilderFactory jobBuilderFactory,
+                       StepBuilderFactory stepBuilderFactory,
+                       JpaAuthorRepository jpaAuthorRepository,
+                       JpaGenreRepository jpaGenreRepository,
+                       JpaBookRepository jpaBookRepository) {
+        this.jobBuilderFactory = jobBuilderFactory;
+        this.stepBuilderFactory = stepBuilderFactory;
+        this.jpaAuthorRepository = jpaAuthorRepository;
+        this.jpaGenreRepository = jpaGenreRepository;
+        this.jpaBookRepository = jpaBookRepository;
+    }
 
-    @Autowired
-    JpaAuthorRepository jpaAuthorRepository;
-
-    @Autowired
-    JpaGenreRepository jpaGenreRepository;
-
-    @Autowired
-    JpaBookRepository jpaBookRepository;
 
     @Bean
     public ItemReader<Author> readerAuthor(MongoTemplate mongoTemplate) {
@@ -112,12 +115,12 @@ public class BatchConfig {
 
 
     @Bean
-    public Job importUserJob(Step step1, Step step2, Step step3) {
+    public Job importUserJob(Step stepMigrateAuthors, Step stepMigrateGenres, Step stepMigrateBooks) {
         FlowJob job = (FlowJob) jobBuilderFactory.get("importUserJob")
                 .incrementer(new RunIdIncrementer())
-                .flow(step1)
-                .next(step2)
-                .next(step3)
+                .flow(stepMigrateAuthors)
+                .next(stepMigrateGenres)
+                .next(stepMigrateBooks)
                 .end()
                 .listener(new JobExecutionListener() {
                     @Override
@@ -136,18 +139,18 @@ public class BatchConfig {
     }
 
     @Bean
-    public Step step1(ItemWriter writerAuthor, ItemReader readerAuthor, ItemProcessor processorAuthor) {
-        return getStep(writerAuthor, readerAuthor, processorAuthor, "step1");
+    public Step stepMigrateAuthors(ItemWriter writerAuthor, ItemReader readerAuthor, ItemProcessor processorAuthor) {
+        return getStep(writerAuthor, readerAuthor, processorAuthor, "stepMigrateAuthors");
     }
 
     @Bean
-    public Step step2(ItemWriter writerGenre, ItemReader readerGenre, ItemProcessor processorGenre) {
-        return getStep(writerGenre, readerGenre, processorGenre, "step2");
+    public Step stepMigrateGenres(ItemWriter writerGenre, ItemReader readerGenre, ItemProcessor processorGenre) {
+        return getStep(writerGenre, readerGenre, processorGenre, "stepMigrateGenres");
     }
 
     @Bean
-    public Step step3(ItemWriter writerBook, ItemReader readerBook, ItemProcessor processorBook) {
-        return getStep(writerBook, readerBook, processorBook, "step3");
+    public Step stepMigrateBooks(ItemWriter writerBook, ItemReader readerBook, ItemProcessor processorBook) {
+        return getStep(writerBook, readerBook, processorBook, "stepMigrateBooks");
     }
 
     private <T> MongoItemReader<T> getBuild(MongoTemplate mongoTemplate, Class<T> clazz, String name) {
